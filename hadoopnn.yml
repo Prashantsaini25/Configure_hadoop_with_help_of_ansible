@@ -1,0 +1,67 @@
+- hosts: namenode
+  gather_facts: no
+  vars_prompt:
+    - name : ndir
+      prompt: "Eneter Datanode DIrectroy : "
+      private: no
+    - name : nip
+      prompt: "Enter Name NodeIP : "
+      private: no
+
+  tasks:
+    - name: Installing java software jdk8 in linux 
+      command: "rpm -ivh jdk-8u171-linux-x64.rpm"
+      register: java
+    - debug:
+       var: java.stdout
+
+    - name: Installing Hadoop Software in Linux
+      command: "rpm -ivf hadoop-1.2.1-1.x86_64.rpm --force"
+      register: hadoop
+      when: java.rc == 0
+    - debug:
+       var: hadoop.stdout
+
+    - name: Creating Name Node Directory 
+      file:
+        path: "{{ ndir }}"
+        state: directory
+
+    - name: Configureing hdfs-site.xml
+      blockinfile:
+        path: /etc/hadoop/hdfs-site.xml
+        insertafter: "<Configuration>"
+        block:
+          <property>
+          <name>dfs.data.dir</name>
+          <value>{{ ndir }}</value>
+          </property>
+
+    - name: Configuring Core-site.xml File
+      blockinfile:
+        path: /etc/hadoop/core-site.xml
+        insertafter: "<configuration>"
+        block:
+          <property>
+          <name>fs.default.name</name>
+          <value>hdfs://{{ nip }}:9001</value>
+          </property>
+
+          # - name: Formatting Name Node Directory
+          # shell: "echo Y | hadoop namenode -format"
+          #  register: format
+          # - debug:
+          # var: format
+
+    - name: Starting hadoop Name Node services
+      shell: "hadoop-daemon.sh start datanode"
+      register: service 
+    - debug:
+       var: service 
+
+    - name: Checking status of DataNode
+      shell: "jps"
+      register: jps
+    - debug:
+        var: jps.stdout_lines
+
